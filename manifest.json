@@ -1,16 +1,64 @@
 {
-  "meta": { "appName": "Co-Desk" },
+  "meta": {
+    "appName": "Co-Desk"
+  },
   "description": "Human + agent support operations over a shared WebMCP tool layer.",
   "tools": [
-    { "name": "listOpenTickets", "mode": "imperative" },
-    { "name": "getTicket", "mode": "imperative" },
-    { "name": "createTicket", "mode": "imperative" },
-    { "name": "addNote", "mode": "imperative" },
-    { "name": "updateStatus", "mode": "imperative" },
-    { "name": "assignToTeam", "mode": "imperative" },
-    { "name": "escalateTicket", "mode": "imperative" },
-    { "name": "resolveTicket", "mode": "imperative" },
-    { "name": "searchTickets", "mode": "imperative" },
-    { "name": "summarizeQueue", "mode": "imperative" }
+    {
+      "name": "listOpenTickets",
+      "mode": "imperative"
+    },
+    {
+      "name": "getTicket",
+      "mode": "imperative"
+    },
+    {
+      "name": "createTicket",
+      "mode": "imperative"
+    },
+    {
+      "name": "addNote",
+      "mode": "imperative"
+    },
+    {
+      "name": "updateStatus",
+      "mode": "imperative"
+    },
+    {
+      "name": "assignToTeam",
+      "mode": "imperative"
+    },
+    {
+      "name": "escalateTicket",
+      "mode": "imperative"
+    },
+    {
+      "name": "resolveTicket",
+      "mode": "imperative"
+    },
+    {
+      "name": "searchTickets",
+      "mode": "imperative"
+    },
+    {
+      "name": "summarizeQueue",
+      "mode": "imperative"
+    },
+    {
+      "name": "getViewState",
+      "mode": "imperative"
+    },
+    {
+      "name": "triageQueue",
+      "mode": "imperative"
+    },
+    {
+      "name": "findDuplicates",
+      "mode": "imperative"
+    },
+    {
+      "name": "draftReply",
+      "mode": "imperative"
+    }
   ]
 }
