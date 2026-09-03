@@ -63,7 +63,7 @@ page loads in a WebMCP-enabled browser, and the code logs the tools visible to
 agents after registration.
 
 ## Testing instructions (for judges)
-1. Open the live URL in Google Chrome with WebMCP enabled
+1. Open the live URL — https://kitematicruntime.github.io/co-desk/ — in Google Chrome with WebMCP enabled
    (`chrome://flags/#enable-webmcp-testing`) or in the ChatGPT in-app browser.
 2. Confirm the header badge reads **"WebMCP connected"**.
 3. Ask the agent something like:
@@ -83,6 +83,7 @@ Without WebMCP, the app still runs as a normal demo desk for exploring the UI
 
 ## Source repository & license
 Public repo with an MIT LICENSE at the top (About section) so it is visible.
+Repository: https://github.com/kitematicruntime/co-desk
 
 ## What's next / ambition
 Beyond the demo: real persistence and auth, approval gates that require a
