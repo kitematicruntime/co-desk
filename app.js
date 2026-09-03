@@ -416,11 +416,26 @@ function touch(t, who) { t.updatedBy = who; t.updatedAt = nowIso(); }
 /* ------------------------------------------------------------------ *
  *  WebMCP registration — the agent-facing surface of this site
  * ------------------------------------------------------------------ */
+/* WebMCP builds have exposed modelContext on different holders (document,
+ * navigator, window), so probe all three instead of assuming one. */
+function findModelContext() {
+  const holders = [
+    typeof document !== "undefined" ? document : null,
+    typeof navigator !== "undefined" ? navigator : null,
+    typeof window !== "undefined" ? window : null,
+  ];
+  for (const h of holders) {
+    const ctx = h && h.modelContext;
+    if (ctx && typeof ctx.registerTool === "function") return ctx;
+  }
+  return null;
+}
+
 async function registerTools() {
-  const ctx = document.modelContext;
-  if (!ctx || typeof ctx.registerTool !== "function") {
+  const ctx = findModelContext();
+  if (!ctx) {
     setMcpStatus(false);
-    console.warn("Co-Desk: no document.modelContext — run in a WebMCP-enabled browser (Chrome flag) or ChatGPT in-app browser.");
+    console.warn("Co-Desk: no modelContext on document, navigator or window — enable chrome://flags/#enable-webmcp-testing and use Relaunch, or open the ChatGPT in-app browser. The footer's '▶ mock agent scenario' link demonstrates the approval gate without WebMCP.");
     return;
   }
   setMcpStatus(true);
