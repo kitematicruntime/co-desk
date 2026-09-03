@@ -5,7 +5,7 @@ live ticket queue together, in real time.
 
 **What it makes possible:** an agent no longer has to guess its way through your
 UI. Co-Desk exposes its whole workflow as declared WebMCP tools
-(`document.modelContext.registerTool`). A person can open the app and work; an AI
+(`modelContext.registerTool`). A person can open the app and work; an AI
 agent (in ChatGPT or Chrome with WebMCP enabled) can discover those tools and act
 inside the real workflow. Both operate one shared queue, and every action shows
 up live on screen — so a human stays in the loop and can review, approve, escalate
@@ -23,7 +23,9 @@ same workload** — the agent clears the routine backlog while the human watches
 live and owns the consequential calls.
 
 ## How WebMCP is implemented
-Every tool is registered against `document.modelContext` (see `registerTools()`
+Every tool is registered against the page's `modelContext`, which
+`findModelContext()` probes on `document`, `navigator` and `window` because
+WebMCP builds have exposed it on different holders (see `registerTools()`
 in [`app.js`](app.js)). Each tool:
 - has a `name` and `description` the agent reads,
 - declares an `inputSchema` (JSON Schema) the agent fills in,
@@ -40,7 +42,8 @@ footer link, which drives the real tool functions and shows the gate.
 
 Registration snippet used in this project:
 ```js
-await document.modelContext.registerTool({
+const ctx = findModelContext();   // document / navigator / window
+await ctx.registerTool({
   name: "resolveTicket",
   description: "Resolve a ticket with a short resolution summary.",
   inputSchema: {

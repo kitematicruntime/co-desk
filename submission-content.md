@@ -7,92 +7,141 @@ truthful — the judges explicitly reward specifics and penalize vagueness.
 Co-Desk — Human + Agent Support Operations
 
 ## Tagline (one line)
-A WebMCP support desk where a human and an AI agent triage the same live queue,
-together, in real time.
+A support desk where the agent's call *freezes mid-execution* until the human on
+the page approves it — one live queue, two operators, real veto power.
 
 ## Elevator pitch / What it is
-Co-Desk is a WebMCP-native customer-support operations tool. It exposes its full
-workflow — list, open, route, note, escalate, resolve — as declared WebMCP tools.
-A human works the queue in the browser; an AI agent discovers those tools and
-acts inside the real workflow. Because both operate the **same** shared store, a
-person can watch the agent clear the routine backlog live and stay in control of
-the consequential decisions.
+Co-Desk is a WebMCP-native support desk built around a human approval gate. The
+agent discovers the site's own operations as declared tools and works the real
+queue: reads return instantly, but every consequential write — resolve, route,
+escalate, batch triage — **parks inside `execute()`** and renders an approval card
+on screen. The agent is genuinely blocked, mid-call, until a person clicks approve
+or reject; the human's decision is what returns to the model. Reject it and the
+agent is told the action was *not* applied, and asked to adjust.
+
+That pending card is the whole point. A remote MCP server can ask for permission
+in chat and hope; only a tool running inside the page the human is already looking
+at can hold the call open and hand back a real verdict.
 
 ## What can people and agents do together that was hard or impossible before? (required question)
-Before WebMCP, an AI agent helping with a real web workflow had to *navigate the
-UI and click* — slow, brittle, and unverifiable. Co-Desk changes the division of
-labor: the site declares its own operations as tools (`listOpenTickets`,
-`getTicket`, `createTicket`, `addNote`, `updateStatus`, `assignToTeam`,
-`escalateTicket`, `resolveTicket`, `searchTickets`, `summarizeQueue`, plus
-intent-level `getViewState`, `triageQueue`, `findDuplicates`, `draftReply`),
-each with a JSON Schema and real effects on the queue.
+Delegating a consequential action without giving up the decision.
 
-That means a support team can now hand the agent the *entire routine workload* —
-opening requests, appending notes, routing to teams, escalating, resolving the
-mechanical cases — while the human watches the same screen update live and
-approves or reopens anything that needs judgment. One shared queue, two operators,
-with the human always in the loop. That human+agent collaboration on a single
-live dataset is exactly what WebMCP unlocks.
+Before WebMCP an agent helping with a web workflow had to drive the UI by clicking
+— slow, brittle, unverifiable — and any "are you sure?" step lived in the chat
+window, far from the actual data. Co-Desk inverts that. The site declares its
+workflow as tools with JSON Schemas and real effects, then splits them by
+consequence:
+
+- **Ungated reads** run immediately: `listOpenTickets`, `getTicket`,
+  `searchTickets`, `summarizeQueue`, `findDuplicates`, `draftReply`.
+- **Perception**: `getViewState` lets the agent see the page as the human sees it
+  — active filter, which ticket ids are on screen, live counts, pending approval
+  cards, and the text the human currently has selected.
+- **Gated writes** stop and wait for a human: `updateStatus`, `assignToTeam`,
+  `escalateTicket`, `resolveTicket`, and batch `triageQueue`, which renders its
+  full plan — every ticket it intends to move — as one card to approve or refuse.
+
+So a support team can hand the agent the entire routine backlog and still own
+every irreversible decision, at the moment it happens, on the same screen showing
+the data. The human is not notified after the fact and not asked in a side
+channel: the agent is stopped, waiting, and visibly so.
 
 ## How did you implement WebMCP? (required question)
-In `app.js`, `registerTools()` registers each operation against
-`document.modelContext` with `registerTool({ name, description, inputSchema,
-execute })`. Reads run instantly; consequential writes (`updateStatus`,
-`assignToTeam`, `escalateTicket`, `resolveTicket`, batch `triageQueue`) pause
-inside `execute()` and render an **approval card** — the agent's call stays
-pending until the human approves or rejects it on screen, then the real result
-returns to the agent. That pending-human card is the story no remote server
-can tell. Every tool:
-- has a **description** the agent reads to decide when to use it,
-- declares an **inputSchema** (JSON Schema) the agent must satisfy,
-- runs an **execute(input)** that performs a real action on the shared queue,
-  persisted to `localStorage` and written to a live activity feed.
+In `app.js`, `registerTools()` registers each operation against the page's
+`modelContext` — probed on `document`, `navigator` and `window`, since builds
+have exposed it on different holders — with `registerTool({ name, description,
+inputSchema, execute })`. Every `execute` routes through one `invokeTool(name, input)`
+chokepoint, which checks the tool's `gate` flag before running anything:
 
-Registration snippet used in the project:
 ```js
-await document.modelContext.registerTool({
-  name: "resolveTicket",
-  description: "Resolve a ticket with a short resolution summary.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      ticketId: { type: "string" },
-      resolution: { type: "string" },
-    },
-    required: ["ticketId", "resolution"],
-  },
-  execute: async (input) => { /* real action on the shared queue */ },
-});
+async function invokeTool(name, input) {
+  const tool = TOOLS.find((t) => t.name === name);
+  const needsGate = tool.gate === true ||
+    (typeof tool.gate === "function" && !!tool.gate(input));
+  if (needsGate) {
+    // Renders the approval card and does not settle until the human clicks.
+    const ok = await requestApproval(
+      tool.name, input, tool.gateWhy(input), tool.plan?.(input));
+    if (!ok) {
+      return "ERROR: rejected by the human — " + name +
+        " was NOT applied. Ask for guidance or adjust the proposal.";
+    }
+  }
+  return tool.run(input);
+}
+
+// requestApproval parks the call in a Promise the UI later settles:
+function requestApproval(toolName, input, why, planLines) {
+  return new Promise((resolve) => {
+    pendingApprovals.set("A" + (++approvalSeq),
+      { tool: toolName, input, why, planLines, resolve });
+    renderApprovals();               // the card the human clicks
+  });
+}
 ```
-A header badge flips to **"WebMCP connected — agent tools registered"** when the
-page loads in a WebMCP-enabled browser, and the code logs the tools visible to
-agents after registration.
+
+Clicking approve or reject calls `decideApproval(id, ok)`, which settles that
+Promise and lets `execute()` finally return the real result to the agent. Marking
+a tool gated is one line at its definition — `gate: true` — so the security model
+is declarative and reviewable in one place, not scattered through handlers.
+
+Everything else is ordinary WebMCP: each tool carries a **description** the agent
+reads to decide when to use it, an **inputSchema** (JSON Schema) it must satisfy,
+and an **execute(input)** with real effects on the shared queue — persisted to
+`localStorage`, mirrored across tabs with `BroadcastChannel`, and written to a
+live activity feed that labels every entry `human` or `agent`. A header badge
+flips to **"WebMCP connected — agent tools registered"** on successful
+registration.
 
 ## Testing instructions (for judges)
-1. Open the live URL — https://kitematicruntime.github.io/co-desk/ — in Google Chrome with WebMCP enabled
-   (`chrome://flags/#enable-webmcp-testing`) or in the ChatGPT in-app browser.
-2. Confirm the header badge reads **"WebMCP connected"**.
-3. Ask the agent something like:
-   > *"Summarize the Co-Desk queue, then handle the password-reset ticket — add a
-   > note, route it to account, and show me before resolving."*
-4. Watch the queue and activity feed update live as the agent acts. You can also
-   click buttons yourself to route, escalate, or resolve — human and agent on the
-   same queue.
+**No browser flag? Skip to step 5 — the gate is fully demonstrable without one.**
 
-Without WebMCP, the app still runs as a normal demo desk for exploring the UI
-(badge shows "WebMCP not detected (view-only)").
+1. Open https://kitematicruntime.github.io/co-desk/ in Chrome with WebMCP enabled:
+   go to `chrome://flags/#enable-webmcp-testing`, set it to **Enabled**, and use
+   the **Relaunch** button — reloading the tab alone does not apply the flag.
+   (The API is exposed only in a secure context; the live URL is HTTPS.)
+2. Confirm the header badge reads **"WebMCP connected — agent tools registered"**.
+   To double-check in DevTools:
+   `!!(document.modelContext || navigator.modelContext || window.modelContext)`.
+3. **See the gate.** Ask the agent, with no hedging in the prompt:
+   > *"Resolve ticket T102 — the password reset — with a one-line summary."*
+
+   The agent calls `resolveTicket` and **stops**. An approval card appears above
+   the queue showing the tool, the ticket, and why it is gated. Nothing has
+   changed in the queue yet. Click **Reject** — the agent is told the action was
+   not applied and will ask you how to proceed. Then repeat and click **Approve**
+   to watch it complete.
+4. **See a whole plan gated at once.** Ask:
+   > *"Triage the entire queue and apply your routing."*
+
+   `triageQueue` renders every ticket it intends to move as a single card. One
+   click approves or refuses the batch.
+5. **Without the flag**, click **▶ mock agent scenario** in the footer. A scripted
+   agent walks the same code path — summarize, note, route, resolve, triage — and
+   the same approval cards block it, waiting for your click. This is the identical
+   `invokeTool` chokepoint the real agent uses, not a mockup of it.
+6. Work the queue yourself at any time — create, route, escalate, resolve. The
+   activity feed tags each action `human` or `agent`, so you can see the two
+   operators interleave on one dataset.
 
 ## Built with / tech
 - WebMCP (`document.modelContext.registerTool`) — the agent-facing tool layer
-- Plain HTML/CSS/JS — no build step, trivially deployable
-- localStorage — shared, persistent queue state between the human UI and tools
+- A promise-parking approval gate — the agent's `execute()` is held open by a
+  Promise the UI settles on click
+- Plain HTML/CSS/JS — no build step, no dependencies, trivially deployable
+- `localStorage` for durable queue state, `BroadcastChannel` for live cross-tab
+  sync, so two windows really do show one shared queue
 
 ## Source repository & license
 Public repo with an MIT LICENSE at the top (About section) so it is visible.
 Repository: https://github.com/kitematicruntime/co-desk
 
 ## What's next / ambition
-Beyond the demo: real persistence and auth, approval gates that require a
-second human sign-off on high-impact agent actions, audit logging, and multi-tenant
-queues. Co-Desk is a pattern for any "shared inbox / ops" product that wants a
-genuine human-in-the-loop agent.
+The gate ships today; what it needs next is durability and scale. Real
+persistence and auth behind the queue. A signed, tamper-evident audit trail so
+"a human approved this at 14:02" is provable after the fact, not just visible in
+a feed. Per-tool scopes and spending limits an operator sets once instead of
+approving every call. Policies learned from past decisions, so the gate stops
+asking about the routine cases and saves the human's attention for the ones that
+actually carry risk. Co-Desk is a pattern any shared-inbox or ops product can
+adopt: give the agent the workload, keep the verdict.
