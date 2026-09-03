@@ -34,9 +34,12 @@
           <option value="high">high</option><option value="urgent">urgent</option>
         </select>
         <textarea id="f-description" rows="2" placeholder="What happened?"></textarea>
+        <p id="formMsg" class="form-msg" role="status"></p>
         <button id="btn-create">Create (as human)</button>
       </div>
     </section>
+
+    <section id="approvals" class="approvals" style="display:none"></section>
 
     <section class="metrics">
       <div class="metric"><b id="m-open">0</b><span>open</span></div>
@@ -60,12 +63,12 @@
       </div>
       <aside class="card activity">
         <h2>Live activity</h2>
-        <ul id="activity"></ul>
+        <ul id="activity" aria-live="polite"></ul>
       </aside>
     </section>
   </main>
 
-  <footer>Co-Desk · WebMCP Challenge 2026 · <a href="#" id="reset">reset demo data</a></footer>
+  <footer>Co-Desk · WebMCP Challenge 2026 · <a href="#" id="mock">▶ mock agent scenario</a> · <a href="#" id="reset">reset demo data</a></footer>
 
   <script src="app.js"></script>
 </body>

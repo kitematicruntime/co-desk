@@ -11,6 +11,10 @@
     { "name": "escalateTicket", "mode": "imperative" },
     { "name": "resolveTicket", "mode": "imperative" },
     { "name": "searchTickets", "mode": "imperative" },
-    { "name": "summarizeQueue", "mode": "imperative" }
+    { "name": "summarizeQueue", "mode": "imperative" },
+    { "name": "getViewState", "mode": "imperative" },
+    { "name": "triageQueue", "mode": "imperative" },
+    { "name": "findDuplicates", "mode": "imperative" },
+    { "name": "draftReply", "mode": "imperative" }
   ]
 }
