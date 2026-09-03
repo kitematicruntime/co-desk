@@ -22,9 +22,10 @@ the consequential decisions.
 Before WebMCP, an AI agent helping with a real web workflow had to *navigate the
 UI and click* — slow, brittle, and unverifiable. Co-Desk changes the division of
 labor: the site declares its own operations as tools (`listOpenTickets`,
-`getTicket`, `addNote`, `updateStatus`, `assignToTeam`, `escalateTicket`,
-`resolveTicket`, `searchTickets`, `summarizeQueue`), each with a JSON Schema and
-real effects on the queue.
+`getTicket`, `createTicket`, `addNote`, `updateStatus`, `assignToTeam`,
+`escalateTicket`, `resolveTicket`, `searchTickets`, `summarizeQueue`, plus
+intent-level `getViewState`, `triageQueue`, `findDuplicates`, `draftReply`),
+each with a JSON Schema and real effects on the queue.
 
 That means a support team can now hand the agent the *entire routine workload* —
 opening requests, appending notes, routing to teams, escalating, resolving the
@@ -36,7 +37,12 @@ live dataset is exactly what WebMCP unlocks.
 ## How did you implement WebMCP? (required question)
 In `app.js`, `registerTools()` registers each operation against
 `document.modelContext` with `registerTool({ name, description, inputSchema,
-execute })`. Every tool:
+execute })`. Reads run instantly; consequential writes (`updateStatus`,
+`assignToTeam`, `escalateTicket`, `resolveTicket`, batch `triageQueue`) pause
+inside `execute()` and render an **approval card** — the agent's call stays
+pending until the human approves or rejects it on screen, then the real result
+returns to the agent. That pending-human card is the story no remote server
+can tell. Every tool:
 - has a **description** the agent reads to decide when to use it,
 - declares an **inputSchema** (JSON Schema) the agent must satisfy,
 - runs an **execute(input)** that performs a real action on the shared queue,
