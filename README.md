@@ -16,10 +16,11 @@ Web agents previously could only *navigate* a page and *click* — unreliable an
 unverifiable. With WebMCP, Co-Desk tells the agent exactly what it is allowed to
 do (`listOpenTickets`, `getTicket`, `createTicket`, `addNote`, `updateStatus`,
 `assignToTeam`, `escalateTicket`, `resolveTicket`, `searchTickets`,
-`summarizeQueue`), each with a JSON Schema and real side effects on the shared
-queue. A human and an agent can therefore **collaborate on the same workload**
-— the agent clears the routine backlog while the human watches live and owns the
-consequential calls.
+`summarizeQueue`, plus intent-level `getViewState`, `triageQueue`,
+`findDuplicates`, `draftReply`), each with a JSON Schema and real side effects
+on the shared queue. A human and an agent can therefore **collaborate on the
+same workload** — the agent clears the routine backlog while the human watches
+live and owns the consequential calls.
 
 ## How WebMCP is implemented
 Every tool is registered against `document.modelContext` (see `registerTools()`
@@ -28,6 +29,14 @@ in [`app.js`](app.js)). Each tool:
 - declares an `inputSchema` (JSON Schema) the agent fills in,
 - runs an `execute(input)` that performs a real action on the shared store
   (persisted to `localStorage`) and records it in the live activity feed.
+
+**Human-in-the-loop gate:** read tools run instantly, but consequential writes
+(`updateStatus`, `assignToTeam`, `escalateTicket`, `resolveTicket`, and batch
+`triageQueue` with `apply=true`) pause inside `execute()` and render an
+**approval card** on the page — the agent's call stays pending until a human
+clicks approve or reject, and the real result flows back to the agent. Without
+a WebMCP browser, the same flow is runnable via the **"▶ mock agent scenario"**
+footer link, which drives the real tool functions and shows the gate.
 
 Registration snippet used in this project:
 ```js
